@@ -230,8 +230,10 @@ long microsecondsToCentimeters(long microseconds)
 
 ## RECENT EVENTS:
 <img width="1896" height="1055" alt="Screenshot 2025-11-14 143133" src="https://github.com/user-attachments/assets/62cf6478-3dc1-4748-a052-91981b7c125d" />
+
 ## SERIAL MONITOR:
 <img width="1828" height="963" alt="Screenshot 2025-11-14 143015" src="https://github.com/user-attachments/assets/79532e74-4aa9-4ab6-a41e-caf37c24d768" />
+
 ## DASHBOARD:
 <img width="1919" height="1005" alt="Screenshot 2025-11-14 143241" src="https://github.com/user-attachments/assets/7377e755-b26d-4e84-937c-0c3ba53c9f91" />
 
