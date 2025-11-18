@@ -99,146 +99,64 @@ Prototype and build IoT systems without setting up servers or developing web sof
  
 # PROGRAM:
 ```
-#include <SoftwareSerial.h>
-#include <Adafruit_Sensor.h>
-
-#define triggerpin 8                 // trigger pin connected to the ultrosonic sensor 
-#define echopin 9                   // techo pin connected to the ultrosonic sensor 
-
-int duration, inches, cm;
-String inputString = "";         // a String to hold incoming data
-bool stringComplete = false;     // whether the string is complete
-long old_time=millis();
-long new_time;
-long uplink_interval=30000;      //ms
-bool time_to_at_recvb=false;
-bool get_LA66_data_status=false;
-bool network_joined_status=false;
-char rxbuff[128];
-uint8_t rxbuff_index=0;
-
-SoftwareSerial ss(10, 11);       // Create a SoftwareSerial port on Arduino pins 10 (RX) and 11 (TX)
-
-void setup() {
-  pinMode(triggerpin,OUTPUT);
-  pinMode(echopin,INPUT);
-  Serial.begin(9600);
-  ss.begin(9600);
-  ss.listen();
-
-  inputString.reserve(200);
-  sensor_t sensor;
-  ss.println("ATZ");//reset LA66
-}
-
-void loop() {
-new_time = millis();
-if((new_time-old_time>=uplink_interval)&&(network_joined_status==1)){
-    old_time = new_time;
-    get_LA66_data_status=false;
-    HC04();      
-    char sensor_data_buff[128]="\0";            
-    snprintf(sensor_data_buff,128,"AT+SENDB=%d,%d,%d,%02X%02X",0,2,2,(short)(inches),(short)(cm));
-    ss.println(sensor_data_buff);
-  }
-  if(time_to_at_recvb==true){
-    time_to_at_recvb=false;
-    get_LA66_data_status=true;
-    delay(1000);    
-    ss.println("AT+CFG");    
-  }
-    while ( ss.available()) {
-    char inChar = (char) ss.read();
-     inputString += inChar;
-    rxbuff[rxbuff_index++]=inChar;
-    if(rxbuff_index>128)
-    break;
-    
-      if (inChar == '\n' || inChar == '\r') {
-      stringComplete = true;
-      rxbuff[rxbuff_index]='\0';
-       if(strncmp(rxbuff,"JOINED",6)==0){
-        network_joined_status=1;
-      }
-      if(strncmp(rxbuff,"Dragino LA66 Device",19)==0){
-        network_joined_status=0;
-      }
-      if(strncmp(rxbuff,"Run AT+RECVB=? to see detail",28)==0){
-        time_to_at_recvb=true;
-        stringComplete=false;
-        inputString = "\0";
-      }
-      if(strncmp(rxbuff,"AT+RECVB=",9)==0){       
-        stringComplete=false;
-        inputString = "\0";
-        Serial.print("\r\nGet downlink data(FPort & Payload) ");
-        Serial.println(&rxbuff[9]);
-      }
-       rxbuff_index=0;
-      if(get_LA66_data_status==true){
-        stringComplete=false;
-        inputString = "\0";
-      }
-    }
-  }
-
-   while ( Serial.available()) {
-    char inChar = (char) Serial.read();
-    inputString += inChar;
-    if (inChar == '\n' || inChar == '\r') {
-      ss.print(inputString);
-      inputString = "\0";
-    }
-  }
- 
-  if (stringComplete) {
-    Serial.print(inputString);
-    
-    // clear the string:
-    inputString = "\0";
-    stringComplete = false;
-  }
-}
-
-void HC04()
+#include "ThingSpeak.h"
+#include <WiFi.h>
+char ssid[] = "طوفان"; //SSID
+char pass[] = "12345678"; // Password
+const int trigger = 2;
+const int echo = 26;
+long T;
+float distanceCM;
+WiFiClient client;
+unsigned long myChannelField =  3168275; // Channel ID
+const int ChannelField = 1; // Which channel to write data
+const char * myWriteAPIKey = "MO2JEA7M2Z9E3DW5"; // Your write API Key
+void setup()
 {
-   digitalWrite(triggerpin, LOW);
-   delayMicroseconds(2);
-   digitalWrite(triggerpin, HIGH);
-   delayMicroseconds(10);
-   digitalWrite(triggerpin, LOW);
-   duration = pulseIn(echopin, HIGH);
-   inches = microsecondsToInches(duration);
-   cm = microsecondsToCentimeters(duration);
-   Serial.print(inches);
-   Serial.print("in, ");
-   Serial.print(cm);
-   Serial.print("cm");
-   Serial.println();
+Serial.begin(115200);
+pinMode(trigger, OUTPUT);
+pinMode(echo, INPUT);
+WiFi.mode(WIFI_STA);
+ThingSpeak.begin(client);
 }
-long microsecondsToInches(long microseconds) 
+void loop()
 {
-   return microseconds / 74 / 2;
+if (WiFi.status() != WL_CONNECTED)
+{
+Serial.print("Attempting to connect to SSID: ");
+Serial.println(ssid);
+while (WiFi.status() != WL_CONNECTED)
+{
+WiFi.begin(ssid, pass);
+Serial.print(".");
+delay(5000);
 }
-long microsecondsToCentimeters(long microseconds) 
-{
-   return microseconds / 29 / 2;
+Serial.println("\nConnected.");
+}
+digitalWrite(trigger, LOW);
+delay(1);
+digitalWrite(trigger, HIGH);
+delayMicroseconds(10);
+digitalWrite(trigger, LOW);
+T = pulseIn(echo, HIGH);
+distanceCM = T * 0.034; //340 m/s or 0.034 cm/microsec
+distanceCM = distanceCM / 2;
+Serial.print("Distance in cm: ");
+Serial.println(distanceCM);
+ThingSpeak.writeField(myChannelField, ChannelField, distanceCM, myWriteAPIKey);
+delay(1000);
 }
 ```
 # CIRCUIT DIAGRAM:
-![WhatsApp Image 2025-11-14 at 2 34 56 PM](https://github.com/user-attachments/assets/276d6512-b58b-4a1a-b144-6f3b03eeca35)
+![WhatsApp Image 2025-11-18 at 2 45 56 PM](https://github.com/user-attachments/assets/387f99df-f26a-45a5-85c8-0fba3b0d55cc)
 
 # OUTPUT:
 
-## RECENT EVENTS:
-<img width="1896" height="1055" alt="Screenshot 2025-11-14 143133" src="https://github.com/user-attachments/assets/62cf6478-3dc1-4748-a052-91981b7c125d" />
-
 ## SERIAL MONITOR:
-<img width="1828" height="963" alt="Screenshot 2025-11-14 143015" src="https://github.com/user-attachments/assets/79532e74-4aa9-4ab6-a41e-caf37c24d768" />
+<img width="1919" height="1198" alt="Screenshot 2025-11-18 144015" src="https://github.com/user-attachments/assets/a2be41b1-cc3f-4abe-9435-a7d9a1770f29" />
 
-## DASHBOARD:
-<img width="1919" height="1005" alt="Screenshot 2025-11-14 143241" src="https://github.com/user-attachments/assets/7377e755-b26d-4e84-937c-0c3ba53c9f91" />
+## THINGSPEAK:
+<img width="1919" height="1058" alt="Screenshot 2025-11-18 144002" src="https://github.com/user-attachments/assets/d579a05f-524b-47f4-8b25-3405a19ed8b8" />
 
 # RESULT:
 Thus the distance values are updated in the Thing speak cloud using ESP32 controller.
-
